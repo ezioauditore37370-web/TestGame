@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algebra Speedrun</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: white;
+            overflow-x: hidden;
+        }
+        .math-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Shake animation for wrong answers */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Flash red for penalty */
+        @keyframes flashRed {
+            0% { background-color: rgba(239, 68, 68, 0.2); }
+            100% { background-color: transparent; }
+        }
+        .flash-red {
+            animation: flashRed 0.5s ease-out;
+        }
+        
+        /* Custom scrollbar for leaderboard */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05); 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2); 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3); 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <!-- Background decorative elements -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-indigo-600/20 blur-[100px]"></div>
+        <div class="absolute top-[60%] -right-[10%] w-[40%] h-[60%] rounded-full bg-purple-600/20 blur-[120px]"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-grow flex items-center justify-center p-4 z-10 relative">
+        <div class="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl overflow-hidden" id="app-container">
+            
+            <!-- VIEW: START SCREEN -->
+            <div id="view-start" class="p-8 md:p-12 text-center flex flex-col items-center">
+                <div class="inline-flex items-center justify-center p-3 bg-indigo-500/20 text-indigo-300 rounded-2xl mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-42.34-61.66a8,8,0,0,1,0,11.32l-16,16a8,8,0,0,1-11.32-11.32L142.69,160l-12.35-12.34a8,8,0,0,1,11.32-11.32L154,148.69l12.34-12.35a8,8,0,0,1,11.32,11.32L165.31,160Z"></path></svg>
+                </div>
+                <h1 class="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300 mb-4">
+                    Algebra Speedrun
+                </h1>
+                <p class="text-slate-300 mb-8 max-w-md text-lg">
+                    Solve 10 one-step equations as fast as you can. Careful: wrong answers add a 5-second penalty!
+                </p>
+                
+                <div class="w-full max-w-xs space-y-4">
+                    <input type="text" id="player-name" placeholder="Enter your name..." 
+                        class="w-full px-5 py-4 rounded-xl bg-slate-800/50 border border-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/50 outline-none transition-all text-center text-xl placeholder:text-slate-500"
+                        maxlength="15" autocomplete="off">
+                    
+                    <button id="btn-start" class="w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all text-lg font-bold shadow-lg shadow-indigo-600/30 text-white">
+                        Start Challenge
+                    </button>
+                    <p id="start-error" class="text-red-400 text-sm hidden">Please enter your name to play!</p>
+                </div>
+                
+                <button id="btn-view-leaderboard" class="mt-8 text-slate-400 hover:text-white underline text-sm transition-colors">
+                    View Leaderboard
+                </button>
+            </div>
+
+            <!-- VIEW: GAME SCREEN -->
+            <div id="view-game" class="hidden flex-col h-full">
+                <!-- Header: Progress and Timer -->
+                <div class="flex justify-between items-center p-6 border-b border-white/10 bg-white/5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Question</span>
+                        <span id="question-counter" class="text-xl font-bold text-indigo-300">1/10</span>
+                    </div>
+                    <div class="text-right">
+                        <div id="timer-display" class="math-font text-2xl font-bold text-white tracking-widest">00:00.00</div>
+                        <div id="penalty-display" class="text-xs text-red-400 font-semibold h-4 opacity-0 transition-opacity">
+                            +5 sec penalty!
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Content -->
+                <div class="p-8 md:p-12 flex-grow flex flex-col items-center justify-center" id="game-flash-zone">
+                    <div class="text-slate-300 text-lg mb-6">Solve for <span class="math-font italic text-indigo-300">x</span></div>
+                    
+                    <div id="equation-display" class="math-font text-5xl md:text-7xl font-bold mb-10 tracking-tight text-center">
+                        x + 5 = 12
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <span class="math-font text-3xl md:text-4xl text-slate-400">x =</span>
+                        <input type="number" id="answer-input" 
+                            class="w-32 md:w-40 px-4 py-3 text-3xl md:text-4xl rounded-xl bg-slate-800/80 border-2 border-slate-600 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 outline-none transition-all text-center math-font no-spinners"
+                            autocomplete="off">
+                    </div>
+                    
+                    <button id="btn-submit" class="mt-8 px-10 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all text-lg font-bold shadow-lg shadow-indigo-600/30 text-white flex items-center gap-2">
+                        Submit
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z"></path></svg>
+                    </button>
+                    <p class="mt-4 text-sm text-slate-500">Press <kbd class="px-2 py-1 bg-slate-800 rounded text-xs">Enter</kbd> to submit</p>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="w-full h-2 bg-slate-800">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300 w-[10%]"></div>
+                </div>
+            </div>
+
+            <!-- VIEW: END SCREEN & LEADERBOARD -->
+            <div id="view-end" class="hidden flex-col p-6 md:p-10 max-h-[90vh]">
+                
+                <!-- Results Section -->
+                <div id="results-section" class="text-center mb-8">
+                    <h2 class="text-3xl font-bold mb-2">Challenge Complete!</h2>
+                    <p class="text-slate-300 mb-6" id="player-result-name">Great job, Player!</p>
+                    
+                    <div class="inline-block bg-slate-800/80 rounded-2xl p-6 border border-white/10 shadow-lg">
+                        <div class="text-sm text-slate-400 uppercase tracking-wider mb-1">Final Time</div>
+                        <div id="final-time-display" class="math-font text-5xl font-bold text-white mb-2 text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+                            00:00.00
+                        </div>
+                        <div id="final-stats-display" class="text-sm text-slate-400">
+                            Raw time: 00:00 + 0 penalties
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Section -->
+                <div class="flex-grow flex flex-col min-h-0 bg-black/20 rounded-2xl border border-white/5 overflow-hidden">
+                    <div class="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                        <h3 class="font-bold text-lg flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#facc15" viewBox="0 0 256 256"><path d="M239.11,101.4a15.82,15.82,0,0,0-12.78-11.2l-62.91-7.85L136.63,24.16a15.89,15.89,0,0,0-29.26,0L80.58,82.35l-62.91,7.85A15.88,15.88,0,0,0,8.81,117.7l46.3,43.2-11.85,62.15a15.89,15.89,0,0,0,23.35,16.89L128,206.59l55.39,33.35a15.89,15.89,0,0,0,23.35-16.89l-11.85-62.15,46.3-43.2A15.84,15.84,0,0,0,239.11,101.4Z"></path></svg>
+                            Top 10 Fastest
+                        </h3>
+                        <span id="lb-status" class="text-xs text-slate-400">Loading...</span>
+                    </div>
+                    
+                    <div class="overflow-y-auto p-2 flex-grow" id="leaderboard-list">
+                        <!-- Leaderboard items injected here -->
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-center gap-4">
+                    <button id="btn-play-again" class="px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all font-bold shadow-lg shadow-indigo-600/30 text-white">
+                        Play Again
+                    </button>
+                    <button id="btn-home" class="px-8 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 transition-all font-bold text-white">
+                        Home
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Custom UI Modal for general errors -->
+    <div id="error-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 hidden backdrop-blur-sm">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-600 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform" id="error-modal-content">
+            <h3 class="text-xl font-bold text-white mb-2">Notice</h3>
+            <p id="error-message" class="text-slate-300 mb-6">Something went wrong.</p>
+            <button id="btn-close-error" class="w-full py-2 bg-indigo-600 rounded-lg font-semibold hover:bg-indigo-500">OK</button>
+        </div>
+    </div>
+
+    <!-- Hiding number input spinners via CSS for better styling -->
+    <style>
+        .no-spinners::-webkit-outer-spin-button,
+        .no-spinners::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .no-spinners {
+            -moz-appearance: textfield;
+        }
+    </style>
+
+    <!-- Firebase and Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- App Configuration & Globals ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'algebra-speedrun-v1';
+        let firebaseConfig = null;
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            // Mock config for local preview without breaking execution
+            firebaseConfig = { apiKey: "mock", projectId: "mock-project" };
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Firestore Paths (RULE 1: Strict paths)
+        const LEADERBOARD_PATH = `artifacts/${appId}/public/data/leaderboard`;
+
+        // Game State Variables
+        let playerName = "";
+        let questions = [];
+        let currentQIndex = 0;
+        let startTime = 0;
+        let penaltySeconds = 0;
+        let timerInterval = null;
+        let finalTimeMs = 0;
+        let isAuthenticated = false;
+
+        // DOM Elements
+        const views = {
+            start: document.getElementById('view-start'),
+            game: document.getElementById('view-game'),
+            end: document.getElementById('view-end')
+        };
+        
+        // Start screen
+        const nameInput = document.getElementById('player-name');
+        const btnStart = document.getElementById('btn-start');
+        const startError = document.getElementById('start-error');
+        const btnViewLeaderboard = document.getElementById('btn-view-leaderboard');
+        
+        // Game screen
+        const questionCounter = document.getElementById('question-counter');
+        const equationDisplay = document.getElementById('equation-display');
+        const answerInput = document.getElementById('answer-input');
+        const btnSubmit = document.getElementById('btn-submit');
+        const timerDisplay = document.getElementById('timer-display');
+        const penaltyDisplay = document.getElementById('penalty-display');
+        const progressBar = document.getElementById('progress-bar');
+        const gameFlashZone = document.getElementById('game-flash-zone');
+        
+        // End screen
+        const playerResultName = document.getElementById('player-result-name');
+        const finalTimeDisplay = document.getElementById('final-time-display');
+        const finalStatsDisplay = document.getElementById('final-stats-display');
+        const btnPlayAgain = document.getElementById('btn-play-again');
+        const btnHome = document.getElementById('btn-home');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const lbStatus = document.getElementById('lb-status');
+        const resultsSection = document.getElementById('results-section');
+
+        // Modal
+        const errorModal = document.getElementById('error-modal');
+        const errorMessage = document.getElementById('error-message');
+        const btnCloseError = document.getElementById('btn-close-error');
+
+        // --- Initialization & Auth ---
+        
+        async function initAuth() {
+            try {
+                // RULE 3: Auth before queries
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                isAuthenticated = true;
+                setupLeaderboardListener();
+            } catch (error) {
+                console.error("Auth error:", error);
+                lbStatus.textContent = "Offline Mode";
+            }
+        }
+
+        initAuth();
+
+        // --- Game Logic ---
+
+        function generateQuestions() {
+            const qs = [];
+            for (let i = 0; i < 10; i++) {
+                // 3 Types of one-step equations
+                // 0: x + a = b
+                // 1: x - a = b
+                // 2: cx = d
+                const type = Math.floor(Math.random() * 3);
+                
+                // x is always the answer, integer between 1 and 12 for Year 7 level
+                const x = Math.floor(Math.random() * 12) + 1;
+                
+                if (type === 0) {
+                    const a = Math.floor(Math.random() * 12) + 1;
+                    const b = x + a;
+                    qs.push({ text: `x + ${a} = ${b}`, answer: x });
+                } else if (type === 1) {
+                    const a = Math.floor(Math.random() * 12) + 1;
+                    const b = x - a;
+                    qs.push({ text: `x - ${a} = ${b}`, answer: x });
+                } else {
+                    // For multiplication, c is between 2 and 12
+                    const c = Math.floor(Math.random() * 11) + 2;
+                    const d = c * x;
+                    qs.push({ text: `${c}x = ${d}`, answer: x });
+                }
+            }
+            return qs;
+        }
+
+        function startGame() {
+            const name = nameInput.value.trim();
+            if (!name) {
+                startError.classList.remove('hidden');
+                nameInput.classList.add('border-red-500');
+                return;
+            }
+            if (name.length > 15) {
+                showModal("Name must be 15 characters or less.");
+                return;
+            }
+            
+            playerName = name;
+            startError.classList.add('hidden');
+            nameInput.classList.remove('border-red-500');
+            
+            questions = generateQuestions();
+            currentQIndex = 0;
+            penaltySeconds = 0;
+            
+            switchView('game');
+            loadQuestion();
+            
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 50); // Update frequently for smooth ms
+            
+            // Focus input immediately for speedrunners
+            setTimeout(() => answerInput.focus(), 100);
+        }
+
+        function loadQuestion() {
+            if (currentQIndex >= questions.length) {
+                endGame();
+                return;
+            }
+            
+            equationDisplay.textContent = questions[currentQIndex].text;
+            questionCounter.textContent = `${currentQIndex + 1}/10`;
+            progressBar.style.width = `${((currentQIndex) / 10) * 100}%`;
+            answerInput.value = '';
+            answerInput.focus();
+        }
+
+        function checkAnswer() {
+            const val = parseInt(answerInput.value, 10);
+            if (isNaN(val)) return; // Don't penalize empty submission
+            
+            const correctAnswer = questions[currentQIndex].answer;
+            
+            if (val === correctAnswer) {
+                // Correct
+                currentQIndex++;
+                loadQuestion();
+            } else {
+                // Wrong - Apply penalty
+                penaltySeconds += 5;
+                answerInput.value = '';
+                
+                // Visual feedback
+                answerInput.classList.add('shake');
+                gameFlashZone.classList.add('flash-red');
+                
+                penaltyDisplay.classList.remove('opacity-0');
+                
+                setTimeout(() => {
+                    answerInput.classList.remove('shake');
+                    gameFlashZone.classList.remove('flash-red');
+                    penaltyDisplay.classList.add('opacity-0');
+                }, 500);
+            }
+            answerInput.focus();
+        }
+
+        function updateTimer() {
+            const now = Date.now();
+            const elapsed = now - startTime;
+            const totalMs = elapsed + (penaltySeconds * 1000);
+            timerDisplay.textContent = formatTime(totalMs);
+        }
+
+        async function endGame() {
+            clearInterval(timerInterval);
+            progressBar.style.width = '100%';
+            
+            const elapsed = Date.now() - startTime;
+            finalTimeMs = elapsed + (penaltySeconds * 1000);
+            
+            switchView('end');
+            resultsSection.style.display = 'block';
+            
+            playerResultName.textContent = `Great job, ${playerName}!`;
+            finalTimeDisplay.textContent = formatTime(finalTimeMs);
+            finalStatsDisplay.textContent = `Raw time: ${formatTime(elapsed, false)} + ${penaltySeconds}s penalty`;
+            
+            // Save to Firebase
+            if (isAuthenticated && firebaseConfig.apiKey !== "mock") {
+                try {
+                    const lbRef = collection(db, LEADERBOARD_PATH);
+                    await addDoc(lbRef, {
+                        name: playerName,
+                        timeMs: finalTimeMs,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    console.error("Error saving score:", error);
+                    showModal("Couldn't save your score to the leaderboard. You might be offline.");
+                }
+            }
+        }
+
+        function formatTime(ms, includeMs = true) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const fraction = Math.floor((ms % 1000) / 10); // 2 digits
+            
+            const mStr = minutes.toString().padStart(2, '0');
+            const sStr = seconds.toString().padStart(2, '0');
+            const fStr = fraction.toString().padStart(2, '0');
+            
+            return includeMs ? `${mStr}:${sStr}.${fStr}` : `${mStr}:${sStr}`;
+        }
+
+        // --- Leaderboard Logic ---
+        
+        function setupLeaderboardListener() {
+            if (firebaseConfig.apiKey === "mock") return;
+            
+            const lbRef = collection(db, LEADERBOARD_PATH);
+            
+            // RULE 2: No complex queries. Fetch all, sort and limit in memory.
+            onSnapshot(lbRef, (snapshot) => {
+                let records = [];
+                snapshot.forEach(doc => {
+                    records.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Sort ascending by time (lowest time is best)
+                records.sort((a, b) => a.timeMs - b.timeMs);
+                
+                // Top 10
+                const top10 = records.slice(0, 10);
+                renderLeaderboard(top10);
+                lbStatus.textContent = "Live";
+                lbStatus.classList.add('text-green-400');
+                lbStatus.classList.remove('text-slate-400');
+            }, (error) => {
+                console.error("Leaderboard error:", error);
+                lbStatus.textContent = "Error loading";
+            });
+        }
+
+        function renderLeaderboard(records) {
+            leaderboardList.innerHTML = '';
+            
+            if (records.length === 0) {
+                leaderboardList.innerHTML = `<div class="p-4 text-center text-slate-500 italic">No scores yet. Be the first!</div>`;
+                return;
+            }
+
+            records.forEach((record, index) => {
+                const isTop3 = index < 3;
+                let rankColor = "text-slate-400";
+                if (index === 0) rankColor = "text-yellow-400 font-bold text-lg";
+                if (index === 1) rankColor = "text-slate-300 font-bold text-lg";
+                if (index === 2) rankColor = "text-amber-600 font-bold text-lg";
+
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center p-3 mb-1 rounded-lg ${isTop3 ? 'bg-white/10' : 'hover:bg-white/5'}`;
+                
+                row.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <span class="w-6 text-center ${rankColor}">#${index + 1}</span>
+                        <span class="font-semibold truncate max-w-[120px] md:max-w-[200px]" title="${escapeHTML(record.name)}">${escapeHTML(record.name)}</span>
+                    </div>
+                    <div class="math-font font-bold text-indigo-200">
+                        ${formatTime(record.timeMs)}
+                    </div>
+                `;
+                leaderboardList.appendChild(row);
+            });
+        }
+
+        // --- UI & Event Listeners ---
+
+        function switchView(viewName) {
+            Object.values(views).forEach(v => v.classList.add('hidden'));
+            views[viewName].classList.remove('hidden');
+            
+            // Adjust end screen layout if just viewing leaderboard
+            if (viewName === 'end') {
+                views.end.classList.add('flex');
+            }
+        }
+
+        function showLeaderboardOnly() {
+            switchView('end');
+            resultsSection.style.display = 'none';
+        }
+
+        function showModal(msg) {
+            errorMessage.textContent = msg;
+            errorModal.classList.remove('hidden');
+            // Small delay for scale animation effect
+            setTimeout(() => {
+                document.getElementById('error-modal-content').classList.remove('scale-95');
+                document.getElementById('error-modal-content').classList.add('scale-100');
+            }, 10);
+        }
+
+        btnCloseError.addEventListener('click', () => {
+            document.getElementById('error-modal-content').classList.remove('scale-100');
+            document.getElementById('error-modal-content').classList.add('scale-95');
+            setTimeout(() => {
+                errorModal.classList.add('hidden');
+            }, 150);
+        });
+
+        // Input enter key handling
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startGame();
+        });
+
+        answerInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                checkAnswer();
+            }
+        });
+
+        // Button clicks
+        btnStart.addEventListener('click', startGame);
+        btnSubmit.addEventListener('click', checkAnswer);
+        btnPlayAgain.addEventListener('click', () => {
+            switchView('start');
+            nameInput.focus();
+            nameInput.select();
+        });
+        btnHome.addEventListener('click', () => {
+            switchView('start');
+        });
+        btnViewLeaderboard.addEventListener('click', showLeaderboardOnly);
+
+        // Utilities
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Focus input on load
+        window.onload = () => {
+            nameInput.focus();
+        };
+
+    </script>
+</body>
+</html>
